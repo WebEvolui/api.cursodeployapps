@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Laravel\Sanctum\PersonalAccessToken;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class TidalController extends Controller
 {
@@ -14,6 +17,17 @@ class TidalController extends Controller
         ]);
 
         $token = PersonalAccessToken::findToken($request->token);
+        if (!$token) {
+            return response()->json(['error' => 'Você não tem permissão para acessar essa API'], 401);
+        }
+
+        $cacheKey = Str::of(urldecode($city))->slug('_')->toString();
+        
+        if (Cache::has($cacheKey)) {
+            Log::info("Cache Key: $cacheKey");
+            $cachedData = Cache::get($cacheKey);
+            return response()->json($cachedData);
+        }
 
         $url = "https://nominatim.openstreetmap.org/search?q=" . urlencode($city) . "&format=json&addressdetails=1";
         $options = [
@@ -34,15 +48,13 @@ class TidalController extends Controller
             ], 404);
         }
 
-        if (!$token) {
-            return response()->json(['error' => 'Você não tem permissão para acessar essa API'], 401);
-        }
-
         $token = env('WORLDTIDES_API_KEY');
         $apiUrl = "https://www.worldtides.info/api/v3?extremes&date=2025-04-18&lat=$latitude&lon=$longitude&days=7&key=$token";
 
         $response = file_get_contents($apiUrl);
         $data = json_decode($response, true);
+
+        Cache::put($cacheKey, $data, now()->endOfDay());
 
         return response()->json($data);
     }
