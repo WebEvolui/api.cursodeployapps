@@ -49,7 +49,8 @@ class TidalController extends Controller
         }
 
         $token = env('WORLDTIDES_API_KEY');
-        $apiUrl = "https://www.worldtides.info/api/v3?extremes&date=2025-04-18&lat=$latitude&lon=$longitude&days=7&key=$token";
+        $date = date('Y-m-d');
+        $apiUrl = "https://www.worldtides.info/api/v3?extremes&date=$date&lat=$latitude&lon=$longitude&days=7&key=$token";
 
         $response = file_get_contents($apiUrl);
         $data = json_decode($response, true);
