@@ -22,9 +22,8 @@ class TidalController extends Controller
         }
 
         $cacheKey = Str::of(urldecode($city))->slug('_')->toString();
-        
+
         if (Cache::has($cacheKey)) {
-            Log::info("Cache Key: $cacheKey");
             $cachedData = Cache::get($cacheKey);
             return response()->json($cachedData);
         }
@@ -50,13 +49,48 @@ class TidalController extends Controller
 
         $token = env('WORLDTIDES_API_KEY');
         $date = date('Y-m-d');
-        $apiUrl = "https://www.worldtides.info/api/v3?extremes&date=$date&lat=$latitude&lon=$longitude&days=7&key=$token";
+        $apiUrl = "https://www.worldtides.info/api/v3?heights&extremes&date=$date&lat=$latitude&lon=$longitude&days=1&key=$token&datum=CD&localtime&timezone";
 
-        $response = file_get_contents($apiUrl);
+        $response = file_get_contents($apiUrl, false);
         $data = json_decode($response, true);
 
-        Cache::put($cacheKey, $data, now()->endOfDay());
+        $array = [
+            'alturas' => [],
+            'extremos' => [],
+        ];
 
-        return response()->json($data);
+        // Gerar os índices desejados dinamicamente
+        $indices = range(0, 48, 6);
+
+        // Filtrar as alturas com base nos índices
+        $array['alturas'] = array_values(array_filter($data['heights'], function ($value, $key) use ($indices) {
+            return in_array($key, $indices);
+        }, ARRAY_FILTER_USE_BOTH));
+
+        // Substituir as alturas próximas pelos extremos
+        foreach ($data['extremes'] as $extreme) {
+            $closestIndex = null;
+            $closestDiff = PHP_INT_MAX;
+
+            foreach ($array['alturas'] as $index => $altura) {
+                $diff = abs($altura['dt'] - $extreme['dt']);
+                if ($diff < $closestDiff) {
+                    $closestDiff = $diff;
+                    $closestIndex = $index;
+                }
+            }
+
+            // Substituir a altura mais próxima pelo extremo
+            if ($closestIndex !== null) {
+                $array['alturas'][$closestIndex] = $extreme;
+            }
+        }
+
+        // Adicionar os extremos ao array final
+        $array['extremos'] = $data['extremes'];
+
+        Cache::put($cacheKey, $array, now()->endOfDay());
+
+        return response()->json($array);
     }
 }

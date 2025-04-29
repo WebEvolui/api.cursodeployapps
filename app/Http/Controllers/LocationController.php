@@ -41,11 +41,13 @@ class LocationController extends Controller
             ], 404);
         }
 
+        $localizacao = $city . ", " . $data['address']['state'] . ", " . $data['address']['country'];
         $city = $city . "," . $data['address']['state'] . "," . $data['address']['country'];
         $city = urlencode($city);
 
         return response()->json([
             'city' => $city,
+            'localizacao' => $localizacao,
         ]);
     }
 }
