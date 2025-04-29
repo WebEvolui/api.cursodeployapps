@@ -16,7 +16,7 @@ class DatabaseSeeder extends Seeder
         $user = User::create([
             'name' => 'Aplicativo Tábua das Marés',
             'email' => 'apptabuadasmares@webevolui.com',
-            'password' => bcrypt('0£pae#^W4:4x]@golMZ-:WKgJ5mtO4gsddT1*0<D6OveF6^t/='),
+            'password' => bcrypt(env('PASSWORD_USER_DEFAULT')),
         ]);
 
         // Geração de um token usando Laravel Sanctum
