@@ -59,7 +59,7 @@ class TidalController extends Controller
         ];
 
         // Gerar os índices desejados dinamicamente
-        $indices = range(0, 48, 6);
+        $indices = range(0, 48, 2);
 
         // Filtrar as alturas com base nos índices
         $array['alturas'] = array_values(array_filter($data['heights'], function ($value, $key) use ($indices) {
