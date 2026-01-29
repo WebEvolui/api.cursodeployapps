@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\BonusNonce;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -25,6 +26,15 @@ class RateLimitTidal
         
         if (!$city) {
             return $next($request);
+        }
+
+        // Verificar se tem nonce de bônus válido
+        $bonusNonce = $request->header('X-Bonus-Nonce');
+        if ($bonusNonce && $this->validateAndUseBonusNonce($bonusNonce, $deviceId, $ip)) {
+            Log::info("Bônus usado para ID: {$deviceId}, IP: {$ip}, Nonce: {$bonusNonce}");
+            $response = $next($request);
+            $response->headers->set('X-Bonus-Used', 'true');
+            return $response;
         }
 
         $normalizedCity = mb_strtolower(trim($city));
@@ -73,5 +83,37 @@ class RateLimitTidal
         $response->headers->set('X-RateLimit-Cities', implode(',', $updatedCities));
 
         return $response;
+    }
+
+    /**
+     * Valida e usa um nonce de bônus
+     * 
+     * @param string $nonceValue O valor do nonce
+     * @param string|null $deviceId O ID do dispositivo
+     * @param string $ip O IP do dispositivo
+     * @return bool True se o nonce foi validado e usado com sucesso
+     */
+    private function validateAndUseBonusNonce(string $nonceValue, ?string $deviceId, string $ip): bool
+    {
+        if (!$deviceId) {
+            return false;
+        }
+
+        $nonce = BonusNonce::where('nonce', $nonceValue)
+            ->where('device_id', $deviceId)
+            ->first();
+
+        if (!$nonce) {
+            Log::debug("Nonce não encontrado: {$nonceValue}");
+            return false;
+        }
+
+        if (!$nonce->canBeUsed()) {
+            Log::debug("Nonce não pode ser usado: {$nonceValue} - Valid: {$nonce->isValid()}, Claimed: {$nonce->isClaimed()}, Used: {$nonce->isUsed()}");
+            return false;
+        }
+
+        // Marcar como usado
+        return $nonce->markAsUsed();
     }
 }
