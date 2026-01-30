@@ -19,7 +19,12 @@ class RateLimitTidal
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $deviceId = $request->header('X-Device-Id') ?? $request->input('device_id');
+        $deviceId = $request->header('X-Device-Id');
+
+        if (!$deviceId) {
+            return $next($request);
+        }
+
         $ip = $request->ip();
         
         $city = $request->route('city');
