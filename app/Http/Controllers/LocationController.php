@@ -3,59 +3,71 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 
 class LocationController extends Controller
 {
     public function getLocation(Request $request)
     {
-        // Validate the request
         $request->validate([
-            'latitude' => 'required|numeric',
+            'latitude'  => 'required|numeric',
             'longitude' => 'required|numeric',
         ]);
 
-        $latitude = $request->input('latitude');
-        $longitude = $request->input('longitude');
+        $response = Http::timeout(20)
+            ->retry(2, 200)
+            ->withHeaders([
+                'User-Agent' => 'TabuadasMaresWebEvolui/1.0',
+            ])
+            ->get('https://nominatim.openstreetmap.org/reverse', [
+                'lat'    => $request->latitude,
+                'lon'    => $request->longitude,
+                'format' => 'json',
+            ]);
 
-        $url = "https://nominatim.openstreetmap.org/reverse?lat={$latitude}&lon={$longitude}&format=json";
-        $options = [
-            "http" => [
-                "header" => "User-Agent: TabuadasMaresWebEvolui/1.0\r\n"
-            ]
-        ];
-
-        try {
-            $context = stream_context_create($options);
-            $response = file_get_contents($url, false, $context);
-        } catch (\Exception $e) {
+        if (! $response->successful()) {
             return response()->json([
-                'error' => 'Failed to retrieve location data',
-                'message' => $e->getMessage()
-            ], 500);
+                'error'  => 'Failed to retrieve location data',
+                'status' => $response->status(),
+            ], 502);
         }
-        
-        $data = json_decode($response, true);
 
-        $city = null;
+        $data = $response->json();
 
-        if (isset($data['address']['city'])) {
-            $city = $data['address']['city'];
-        } elseif (isset($data['address']['town'])) {
-            $city = $data['address']['town'];
-        } elseif (isset($data['address']['village'])) {
-            $city = $data['address']['village'];
-        } else {
+        if (! is_array($data)) {
+            return response()->json([
+                'error' => 'Invalid response from location service',
+            ], 502);
+        }
+
+        $address = $data['address'] ?? [];
+
+        $city = $address['city']
+            ?? $address['town']
+            ?? $address['village']
+            ?? null;
+
+        if (! $city) {
             return response()->json([
                 'error' => 'Location not found',
             ], 404);
         }
 
-        $localizacao = $city . ", " . $data['address']['state'] . ", " . $data['address']['country'];
-        $city = $city . "," . $data['address']['state'] . "," . $data['address']['country'];
-        $city = urlencode($city);
+        $state = $address['state']
+            ?? $address['region']
+            ?? $address['province']
+            ?? $address['state_district']
+            ?? null;
+
+        $country = $address['country'] ?? null;
+
+        $parts = array_values(array_filter([$city, $state, $country]));
+
+        $localizacao = implode(', ', $parts);
+        $cityParam   = urlencode(implode(',', $parts));
 
         return response()->json([
-            'city' => $city,
+            'city' => $cityParam,
             'localizacao' => $localizacao,
         ]);
     }

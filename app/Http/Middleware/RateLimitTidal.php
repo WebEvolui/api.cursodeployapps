@@ -64,7 +64,7 @@ class RateLimitTidal
         // Se a cidade não foi consultada e já atingiu o limite
         if (!$cityAlreadyConsulted && $currentCityCount >= $maxCities) {
             $ttl = Redis::ttl($key);
-            Log::warning("Rate limit atingido para ID: {$deviceId}, IP: {$ip}. Premium: " . ($isPremium ? 'Sim' : 'Não') . ". Cidades consultadas: " . implode(', ', $consultedCities));
+            Log::info("Rate limit atingido para ID: {$deviceId}, IP: {$ip}. Premium: " . ($isPremium ? 'Sim' : 'Não') . ". Cidades consultadas: " . implode(', ', $consultedCities));
 
             $message = $isPremium 
                 ? "Limite de {$maxCities} cidades diferentes atingido hoje para sua conta Premium. Tente novamente amanhã."
