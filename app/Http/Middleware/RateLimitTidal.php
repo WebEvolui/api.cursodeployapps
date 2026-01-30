@@ -124,6 +124,7 @@ class RateLimitTidal
         }
 
         // Se não está no cache ou é Force Check, consulta RevenueCat V2
+        Log::info("Consultando RevenueCat para ID: {$deviceId}" . ($forceCheck ? " (Force Check)" : " (Cache Miss)"));
         $isPremium = $this->verifyWithRevenueCat($deviceId);
 
         // Salva no cache: 1 hora em ambos os casos.
