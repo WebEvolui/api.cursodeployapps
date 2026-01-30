@@ -23,8 +23,17 @@ class LocationController extends Controller
                 "header" => "User-Agent: TabuadasMaresWebEvolui/1.0\r\n"
             ]
         ];
-        $context = stream_context_create($options);
-        $response = file_get_contents($url, false, $context);
+
+        try {
+            $context = stream_context_create($options);
+            $response = file_get_contents($url, false, $context);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to retrieve location data',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+        
         $data = json_decode($response, true);
 
         $city = null;

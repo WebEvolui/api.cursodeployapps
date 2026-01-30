@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Laravel\Sanctum\PersonalAccessToken;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class TidalController extends Controller
@@ -33,8 +34,17 @@ class TidalController extends Controller
                 "header" => "User-Agent: TabuadasMaresWebEvolui/1.0\r\n"
             ]
         ];
-        $context = stream_context_create($options);
-        $response = file_get_contents($url, false, $context);
+
+        try {
+            $context = stream_context_create($options);
+            $response = file_get_contents($url, false, $context);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to retrieve location data',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+
         $data = json_decode($response, true);
 
         $latitude = $data[0]['lat'] ?? null;
@@ -50,8 +60,18 @@ class TidalController extends Controller
         $date = date('Y-m-d');
         $apiUrl = "https://www.worldtides.info/api/v3?heights&extremes&date=$date&lat=$latitude&lon=$longitude&days=1&key=$token&datum=CD&localtime&timezone";
 
-        $response = file_get_contents($apiUrl, false);
-        $data = json_decode($response, true);
+        try {
+            $response = file_get_contents($apiUrl, false);
+            $data = json_decode($response, true);
+        } catch (\Exception $e) {
+            Log::error("Failed to retrieve tidal data for city: {$city}, lat: {$latitude}, lon: {$longitude}. Error: " . $e->getMessage());
+
+            return response()->json([
+                'error' => 'Failed to retrieve tidal data',
+                'message' => 'See log for details'
+            ], 500);
+        }
+
 
         $array = [
             'alturas' => [],
