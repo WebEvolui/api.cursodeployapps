@@ -22,7 +22,8 @@ class RateLimitTidal
     {
         $deviceId = $request->header('X-Device-Id');
 
-        // RETIRAR ESSE IF depois
+        // Deixar passar sem device_id - antigos que pega apenas a localização atual
+        // vai continuar funcionando normalmente
         if (!$deviceId) {
             return $next($request);
         }
