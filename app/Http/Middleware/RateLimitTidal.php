@@ -51,7 +51,7 @@ class RateLimitTidal
         $isPremium = $this->checkIsPremium($request, $deviceId);
         
         $key = 'rate_limit:tidal:cities:' . md5($deviceId . $ip);
-        $maxCities = $isPremium ? 30 : 2;
+        $maxCities = $isPremium ? 30 : 3;
 
         $ttlSeconds = (int) Carbon::now()->diffInSeconds(Carbon::now()->endOfDay());
         
