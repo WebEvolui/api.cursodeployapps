@@ -21,6 +21,7 @@ class RateLimitTidal
     public function handle(Request $request, Closure $next): Response
     {
         $deviceId = $request->header('X-Device-Id');
+        $appUserId = $request->header('X-App-User-Id');
 
         // Deixar passar sem device_id - antigos que pega apenas a localização atual
         // vai continuar funcionando normalmente
@@ -47,8 +48,8 @@ class RateLimitTidal
 
         $normalizedCity = mb_strtolower(trim($city));
         
-        // Verificar se é premium
-        $isPremium = $this->checkIsPremium($request, $deviceId);
+        // Verificar se é premium usando o App User ID
+        $isPremium = $appUserId ? $this->checkIsPremium($request, $appUserId) : false;
         
         $key = 'rate_limit:tidal:cities:' . md5($deviceId . $ip);
         $maxCities = $isPremium ? 30 : 3;
@@ -105,7 +106,7 @@ class RateLimitTidal
     /**
      * Verifica se o usuário é premium via header, cache ou API RevenueCat
      */
-    private function checkIsPremium(Request $request, string $deviceId): bool
+    private function checkIsPremium(Request $request, string $identifier): bool
     {
         // Só verifica se o app disse que ele é premium
         $headerPremium = strtolower($request->header('X-Premium') ?? '');
@@ -114,7 +115,7 @@ class RateLimitTidal
             return false;
         }
 
-        $cacheKey = "premium_status:{$deviceId}";
+        $cacheKey = "premium_status:{$identifier}";
         $forceCheck = strtolower($request->header('X-Premium-Force-Check') ?? '') === 'true';
         
         // Tenta pegar do cache primeiro (30 minutos), a menos que seja um Force Check
@@ -125,8 +126,8 @@ class RateLimitTidal
         }
 
         // Se não está no cache ou é Force Check, consulta RevenueCat V2
-        Log::info("Consultando RevenueCat para ID: {$deviceId}" . ($forceCheck ? " (Force Check)" : " (Cache Miss)"));
-        $isPremium = $this->verifyWithRevenueCat($deviceId);
+        Log::info("Consultando RevenueCat para ID: {$identifier}" . ($forceCheck ? " (Force Check)" : " (Cache Miss)"));
+        $isPremium = $this->verifyWithRevenueCat($identifier);
 
         // Salva no cache: 1 hora em ambos os casos.
         // O Force Check resolve o problema do usuário que acaba de assinar.
